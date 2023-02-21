@@ -1,0 +1,6 @@
+Flask==2.2.2
+flask-openapi3==2.1.1
+flask-pydantic-serializers==1.0.0
+Flask-SQLAlchemy==3.0.0a2
+pydantic==1.10.2
+SQLAlchemy==1.4.41
