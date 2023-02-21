@@ -13,16 +13,16 @@ setup(
     description='Base class for serializing data using pydantic Flask',
     download_url=(
         'https://github.com/Jeep123Samuels/'
-        'flask_pydantic_serializers/archive/main.zip'
+        'pydantic_sql_orm_extension/archive/main.zip'
     ),
-    keywords=['Flask', 'pydantic', 'serializers'],
+    keywords=['Flask', 'pydantic', 'serializers', 'sql'],
     license='MIT',
-    name='flask_pydantic_serializers',
+    name='pydantic_sql_orm_extension',
     packages=[
-        'flask_pydantic_serializers',
+        'pydantic_sql_orm_extension',
     ],
     version='1.1.0',
-    url='https://github.com/Jeep123Samuels/flask_pydantic_serializers',
+    url='https://github.com/Jeep123Samuels/pydantic_sql_orm_extension',
 
     install_requires=[
         'Flask',

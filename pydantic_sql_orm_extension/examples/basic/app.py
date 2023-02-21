@@ -7,8 +7,8 @@ from flask_sqlalchemy import SQLAlchemy
 from pydantic import BaseModel
 from sqlalchemy.ext.declarative import declared_attr
 
-from flask_pydantic_serializers.base import BaseCrud
-from flask_pydantic_serializers.json_mixin import OutputMixin
+from pydantic_sql_orm_extension.base import BaseCrud
+from pydantic_sql_orm_extension.json_mixin import OutputMixin
 
 
 app = OpenAPI(__name__)
