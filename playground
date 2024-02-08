@@ -1,0 +1,174 @@
+
+from unittest import TestCase
+import unittest
+from textwrap import dedent
+from dataclasses import dataclass
+from typing import Callable, Any, Dict
+
+
+@dataclass
+class Field:
+    """
+    Defines a field with a label and preconditions
+    """
+    label: str
+    precondition: Callable[[Any], bool] = None
+
+# Record and supporting classes here
+
+class RecordMeta(type):
+    def __new__(cls, clsname, bases, clsdict):
+        return super(RecordMeta, cls).__new__(cls, clsname, bases, clsdict)
+
+class Record(metaclass=RecordMeta):
+    __read_only: bool = False
+    __cls_str: str = ""
+
+    def __init__(self, **kwargs):
+        anno_dict = getattr(self, "__annotations__")
+        parent_classes = self.__class__.mro()[:-2]
+
+        for cls_ in reversed(parent_classes):
+            anno_dict.update(getattr(cls_, "__annotations__"))
+
+        self._validate_init_fields(kwargs)
+        self._set_cls_str(**kwargs)
+
+        for k, v in kwargs.items():
+            field_val = getattr(self, k)
+            k_type = anno_dict[k]
+            if not isinstance(v, k_type):
+                raise TypeError(
+                    f"Incorrect type for `{k} = {v}`. "
+                    f"Must be of type {k_type.__qualname__}."
+                )
+            pre_condition = getattr(field_val, "precondition")
+            if callable(pre_condition) and not pre_condition(v):
+                raise TypeError(f"Invalid value for {k}.")
+            setattr(self, k, v)
+
+        self.__read_only = True
+
+    def __setattr__(self, attr, value):
+        if self.__read_only:
+            raise AttributeError(f"Read only field cannot - {attr}")
+        super().__setattr__(attr, value)
+
+    def __str__(self):
+        return self.__cls_str
+
+    def _set_cls_str(self, **kwargs):
+        keys_list = list(kwargs.keys())
+        self.__cls_str: str = f"{self.__class__.__name__}(\n"
+        for k, v in kwargs.items():
+            field_val = getattr(self, k)
+            for k_, v_ in field_val.__dataclass_fields__.items():
+                if k_ in ["precondition"]:
+                    continue
+                self.__cls_str += f"  # {getattr(field_val, k_)}\n"
+            if isinstance(v, str):
+                self.__cls_str += f"  {k}='{v}'\n"
+            else:
+                self.__cls_str += f"  {k}={v}\n"
+            if k == keys_list[-1]:
+                self.__cls_str += ")"
+            else:
+                self.__cls_str += "\n"
+
+    def _validate_init_fields(self, sub_dict):
+        main_dict = getattr(self, "__annotations__")
+
+        main_dict_keys = set(list(main_dict.keys()))
+        sub_dict_keys: set = set(list(sub_dict.keys()))
+
+        missing_fields = set(main_dict_keys).difference(sub_dict_keys)
+        rogue_fields = set(sub_dict_keys).difference(main_dict_keys)
+        if rogue_fields:
+            raise TypeError(f"Rogue fields detected - {rogue_fields}")
+        if missing_fields:
+            raise TypeError(f"Missing required fields - {missing_fields}")
+
+
+# Usage of Record
+class Person(Record):
+    """
+    A simple person record
+    """ 
+    name: str = Field(label="The name") 
+    age: int = Field(
+        label="The person's age",
+        precondition=lambda x: 0 <= x <= 150
+    )
+    income: float = Field(
+        label="The person's income",
+        precondition=lambda x: 0 <= x
+    )
+
+class Named(Record):
+    """
+    A base class for things with names
+    """
+    name: str = Field(label="The name") 
+
+class Animal(Named):
+    """
+    An animal
+    """
+    habitat: str = Field(
+        label="The habitat",
+        precondition=lambda x: x in ["air", "land","water"]
+    )
+    weight: float = Field(
+        label="The animals weight (kg)",
+        precondition=lambda x: 0 <= x
+    )
+
+class Dog(Animal):
+    """
+    A type of animal
+    """
+    bark: str = Field(label="Sound of bark")
+
+# Tests 
+class RecordTests(TestCase):
+    def test_creation(self):
+        Person(name="JAMES", age=110, income=24000.0)
+        with self.assertRaises(TypeError): 
+            Person(name="JAMES", age=160, income=24000.0)
+        with self.assertRaises(TypeError): 
+            Person(name="JAMES")
+        with self.assertRaises(TypeError): 
+            Person(name="JAMES", age=-1, income=24000.0)
+        with self.assertRaises(TypeError): 
+            Person(name="JAMES", age="150", income=24000.0)
+        with self.assertRaises(TypeError): 
+            Person(name="JAMES", age="150", wealth=24000.0)
+    
+    def test_properties(self):
+        james = Person(name="JAMES", age=34, income=24000.0)
+        self.assertEqual(james.age, 34)
+        with self.assertRaises(AttributeError):
+            james.age = 32
+    
+    def test_str(self):
+        james = Person(name="JAMES", age=34, income=24000.0)
+        correct = dedent("""
+        Person(
+          # The name
+          name='JAMES'
+
+          # The person's age
+          age=34
+
+          # The person's income
+          income=24000.0
+        )
+        """).strip()
+        self.assertEqual(str(james), correct)
+
+    def test_dog(self):
+        mike = Dog(name="mike", habitat="land", weight=50., bark="ARF")
+        self.assertEqual(mike.weight, 50)
+        
+if __name__ == '__main__':
+    unittest.main()
